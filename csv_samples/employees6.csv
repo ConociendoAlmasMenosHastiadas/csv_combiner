@@ -1,0 +1,14 @@
+id,name,department,salary,notes
+26,Alice Cooper,Engineering,95000,"Lead developer
+Experienced with Rust and Python
+Available for mentoring"
+27,David Lee,Sales,70000,"Top performer in Q4
+Exceeded targets by 150%"
+28,Emma Stone,Marketing,77000,"Creative strategist
+Note: She said ""I love this job!"""
+29,Frank Wu,HR,69000,"Handles benefits
+Also manages:
+- Onboarding
+- Training programs"
+30,Grace Park,Engineering,102000,"Senior architect
+Works remotely from ""San Francisco, CA"""

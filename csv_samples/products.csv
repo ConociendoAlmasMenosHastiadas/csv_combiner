@@ -1,0 +1,6 @@
+sku,product_name,category,price,stock
+P001,Laptop,Electronics,1299.99,45
+P002,Mouse,Electronics,24.99,150
+P003,Keyboard,Electronics,79.99,89
+P004,Monitor,Electronics,349.99,32
+P005,Desk Chair,Furniture,199.99,28
