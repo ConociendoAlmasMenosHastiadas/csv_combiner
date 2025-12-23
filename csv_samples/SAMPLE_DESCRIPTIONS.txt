@@ -1,0 +1,117 @@
+CSV Sample Files Summary
+========================
+
+employees1.csv
+- Columns: id, name, department, salary
+- Standard baseline format
+- 5 employees (IDs 1-5)
+- Used as baseline in all test cases
+- Complete records with all fields
+
+employees1_name.csv
+- Columns: id, name
+- PARTIAL RECORDS - only ID and name fields
+- Same 5 employees as employees1.csv (IDs 1-5)
+- Used to test merge functionality
+
+employees1_department.csv
+- Columns: id, department
+- PARTIAL RECORDS - only ID and department fields
+- Same 5 employees as employees1.csv (IDs 1-5)
+- Used to test merge functionality
+
+employees1_salary.csv
+- Columns: id, salary
+- PARTIAL RECORDS - only ID and salary fields
+- Same 5 employees as employees1.csv (IDs 1-5)
+- Used to test merge functionality
+
+employees2.csv
+- Columns: id, name, department, salary
+- Standard format (matches employees1)
+- 5 employees (IDs 6-10)
+
+employees3.csv
+- Columns: name, id, salary, department
+- DIFFERENT COLUMN ORDER than employees1
+- Same fields, just reordered
+- 5 employees (IDs 11-15)
+
+employees4.csv
+- Columns: id, name, gender, department, salary
+- EXTRA COLUMN (gender) not in other employee files
+- Gender inserted between name and department
+- 5 employees (IDs 16-20)
+
+employees5.csv
+- Columns: id, name, department, salary, address
+- QUOTED FIELDS with commas inside (e.g., "Johnson, Sarah")
+- Addresses contain commas within quotes
+- ESCAPED QUOTES (doubled: "" for literal ")
+- Tests CSV RFC 4180 quoting rules
+- 5 employees (IDs 21-25)
+
+employees6.csv
+- Columns: id, name, department, salary, notes
+- MULTILINE FIELDS within quotes (newlines in notes column)
+- Combination of newlines AND escaped quotes
+- Tests proper quoted field parsing across line boundaries
+- Will break naive line-by-line readers
+- 5 employees (IDs 26-30)
+
+employees7.csv
+- Columns: id, name, department, salary
+- DUPLICATE ENTRIES from employees1.csv (IDs 1, 2, 3)
+- Mixed with new entries (IDs 31-33)
+- Tests deduplication logic
+- Should detect/handle repeated rows
+- 6 employees total (3 duplicates, 3 new)
+
+products.csv
+- Columns: id, product_name, category, price, stock
+- COMPLETELY DIFFERENT SCHEMA from employee files
+- 5 products
+- Tests merging incompatible schemas
+
+Test Cases (from csv_combining.rs):
+====================================
+
+Level 1: test_level1_same_schema()
+- Files: employees1.csv + employees2.csv
+- Tests: Basic merge with identical schemas
+- Expected: 11 lines (1 header + 10 data rows)
+
+Level 2: test_level2_column_order_mismatch()
+- Files: employees1.csv + employees3.csv
+- Tests: Same columns but different order
+- Expected: Columns properly aligned to employees1 order
+
+Level 3: test_level3_missing_columns()
+- Files: employees1.csv + employees4.csv
+- Tests: Extra column (gender) in second file
+- Expected: Merged schema includes all columns, missing values filled with "EMPTY"
+
+Level 4: test_level4_quoted_fields_with_commas()
+- Files: employees1.csv + employees5.csv
+- Tests: Quoted fields containing commas
+- Expected: Commas within quotes preserved correctly
+
+Level 5: test_level5_multiline_fields()
+- Files: employees1.csv + employees6.csv
+- Tests: Multiline fields within quotes (HARD - breaks naive parsers)
+- Expected: Newlines within quotes preserved correctly
+
+Level 6: test_level6_incompatible_schemas()
+- Files: employees1.csv + products.csv
+- Tests: Completely different schemas
+- Expected: Merged schema includes all columns from both files, many EMPTY values
+
+Level 7: test_level7_duplicate_rows()
+- Files: employees1.csv + employees7.csv
+- Tests: Duplicate detection (with --remove-duplicates flag)
+- Expected: Duplicates removed, only first occurrence kept
+
+Level 8: test_merge_duplicates()
+- Files: employees1_name.csv + employees1_department.csv + employees1_salary.csv
+- Tests: Merging rows with same key from multiple files (with --merge-duplicates flag)
+- Expected: 5 complete rows reconstructed from 3 partial files, no EMPTY values
