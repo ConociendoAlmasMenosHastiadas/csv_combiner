@@ -52,7 +52,8 @@ Copy-Item "LICENSE-APACHE" -Destination (Join-Path $distPath "LICENSE-APACHE.txt
 Copy-Item "LICENSE-MIT" -Destination (Join-Path $distPath "LICENSE-MIT.txt")
 Copy-Item "THIRD-PARTY-LICENSES.txt" -Destination $distPath
 
-# Copy README
+# Copy README files
+Copy-Item "README.md" -Destination $distPath
 Copy-Item "README_CLI.md" -Destination $distPath
 
 # Create zip file
@@ -76,4 +77,5 @@ Write-Host "  - csv_combiner.exe"
 Write-Host "  - LICENSE-APACHE.txt"
 Write-Host "  - LICENSE-MIT.txt"
 Write-Host "  - THIRD-PARTY-LICENSES.txt"
+Write-Host "  - README.md"
 Write-Host "  - README_CLI.md"
