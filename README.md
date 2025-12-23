@@ -4,7 +4,7 @@ A tool to combine CSV, TSV, and other delimited data files with flexible options
 
 ## Overview
 
-**csv_combiner** helps data scientists and analysts organize multiple data files into a single coherent output. If you're tired of manually copy-pasting to merge files in repetitive workflows, this tool should make life easier.
+**csv_combiner** is intended to help data scientists and analysts organize multiple data files into a single coherent output. If you're tired of manually copy-pasting to merge files in repetitive workflows, this tool should make life easier.
 
 ## Features
 
