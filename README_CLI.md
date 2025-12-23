@@ -46,6 +46,21 @@ csv_combiner file1.csv file2.csv -o output.csv -r
 
 # Note: When duplicates are found based on key columns, the first instance
 # encountered is kept and subsequent duplicates are skipped
+# Cannot be used with --merge-duplicates
+```
+
+### Merge Duplicates
+```bash
+# Enable merging rows with same key (fills in missing values)
+csv_combiner file1.csv file2.csv -o output.csv --merge-duplicates
+csv_combiner file1.csv file2.csv -o output.csv --keys id --merge-duplicates
+csv_combiner file1.csv file2.csv -o output.csv -m
+
+# Note: When rows with matching keys are found, fields are merged:
+# - Existing non-empty values are kept
+# - Empty/missing values are filled from subsequent matches
+# - Results in one row per unique key with combined data
+# Cannot be used with --remove-duplicates
 ```
 
 ### Empty Field Value
@@ -65,6 +80,9 @@ csv_combiner employees1.csv employees2.csv -o combined.csv
 # With deduplication on ID column
 csv_combiner employees*.csv -o all_employees.csv --keys id --remove-duplicates
 
+# With merging on ID column (combine partial records)
+csv_combiner employees*.csv -o merged_employees.csv --keys id --merge-duplicates
+
 # Custom delimiter (TSV) with custom empty value
 csv_combiner data1.tsv data2.tsv -o merged.tsv -d "\t" -e "MISSING"
 
@@ -77,12 +95,27 @@ csv_combiner csv_samples/employees*.csv \
     --empty-value "N/A"
 ```
 
-## Help/Version
+## Help/Version/License
 ```bash
 csv_combiner --help
 csv_combiner -h
 csv_combiner --version
 csv_combiner -V
+csv_combiner --license
+```
+
+### License Information
+```bash
+# Display license information
+csv_combiner --license
+
+# Expected output:
+# csv_combiner is dual-licensed under:
+#   - Apache License 2.0 (LICENSE-APACHE.txt)
+#   - MIT License (LICENSE-MIT.txt)
+#
+# See the respective license files for full terms.
+# Third-party dependencies are listed in THIRD-PARTY-LICENSES.txt
 ```
 
 ### Expected Help Output
@@ -103,9 +136,13 @@ OPTIONS:
     -k, --keys <COLUMNS>             Key columns for deduplication (comma-separated)
                                      [default: all columns from first file's header]
     -r, --remove-duplicates          Remove duplicate rows based on key columns (keeps first)
+    -m, --merge-duplicates           Merge rows with same key by filling in missing values
     -e, --empty-value <STRING>       Value to use for missing columns [default: ""]
     -h, --help                       Print help information
     -V, --version                    Print version information
+        --license                    Display license information
+
+NOTE: --remove-duplicates and --merge-duplicates cannot be used together
 
 EXAMPLES:
     # Basic merge
@@ -113,6 +150,9 @@ EXAMPLES:
 
     # With deduplication on specific columns
     csv_combiner *.csv -o output.csv --keys id,email --remove-duplicates
+
+    # With merging on specific columns
+    csv_combiner partial1.csv partial2.csv -o merged.csv --keys id --merge-duplicates
 
     # Custom delimiter and empty value
     csv_combiner data1.tsv data2.tsv -o merged.tsv -d "\t" -e "N/A"
@@ -136,6 +176,10 @@ csv_combiner missing.csv other.csv -o output.csv
 # Invalid delimiter
 csv_combiner file1.csv file2.csv -o output.csv -d "abc"
 # Error: Delimiter must be a single character
+
+# Both remove and merge flags
+csv_combiner file1.csv file2.csv -o output.csv --remove-duplicates --merge-duplicates
+# Error: --remove-duplicates and --merge-duplicates cannot be used together
 ```
 
 ## Implementation Notes
@@ -145,4 +189,6 @@ csv_combiner file1.csv file2.csv -o output.csv -d "abc"
 - Delimiter: single character, default `,`
 - Key columns: comma-separated list, defaults to all columns from first file
 - Remove duplicates: flag, default false; when enabled, keeps first occurrence of each unique key
+- Merge duplicates: flag, default false; when enabled, merges rows with same key by filling missing values
 - Empty value: string, default `""` (empty string)
+- Mutually exclusive: `--remove-duplicates` and `--merge-duplicates` cannot be used together

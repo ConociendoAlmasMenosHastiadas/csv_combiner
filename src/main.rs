@@ -27,13 +27,37 @@ struct Args {
     #[arg(short = 'r', long)]
     remove_duplicates: bool,
     
+    /// Merge duplicate rows based on key columns
+    #[arg(short = 'm', long)]
+    merge_duplicates: bool,
+    
     /// Value to use for missing columns [default: ""]
     #[arg(short = 'e', long, default_value = "", hide_default_value = true)]
     empty_value: String,
+    
+    /// Display license information
+    #[arg(long)]
+    license: bool,
 }
 
 fn main() {
     let args = Args::parse();
+    
+    // Handle --license flag
+    if args.license {
+        println!("csv_combiner is dual-licensed under:");
+        println!("  - Apache License 2.0 (LICENSE-APACHE.txt)");
+        println!("  - MIT License (LICENSE-MIT.txt)");
+        println!("\nSee the respective license files for full terms.");
+        println!("Third-party dependencies are listed in THIRD-PARTY-LICENSES.txt");
+        process::exit(0);
+    }
+    
+    // Validate that remove_duplicates and merge_duplicates are not both true
+    if args.remove_duplicates && args.merge_duplicates {
+        eprintln!("Error: --remove-duplicates and --merge-duplicates cannot be used together");
+        process::exit(1);
+    }
     
     // Convert input_files Vec<String> to Vec<&str>
     let input_refs: Vec<&str> = args.input_files.iter().map(|s| s.as_str()).collect();
@@ -50,6 +74,7 @@ fn main() {
         args.delimiter,
         &args.empty_value,
         args.remove_duplicates,
+        args.merge_duplicates,
     );
     
     // Handle errors

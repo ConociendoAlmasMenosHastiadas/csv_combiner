@@ -1,7 +1,8 @@
 use std::io::Result;
 use std::fs::File;
 use std::io::{BufRead, Write, BufReader, BufWriter,Lines};
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
+use std::mem;
 // use std::cmp::max;
 
 
@@ -12,9 +13,7 @@ const LINE_ENDING: &'static str = "\r\n";
 const LINE_ENDING: &'static str = "\n";
 
 fn parse_line(line: &str, delimiter: char,in_quotes: bool) -> (Vec<String>,bool) {
-    // A very simplistic CSV parser that splits on commas.
-    // This does not handle quoted fields with commas or newlines.
-    // line.split(delimiter).map(|s| s.trim().to_string()).collect() // super simple for now
+    //parses a single line into fields, returning whether we are still in quotes at end of line
     let line = line.trim();
     let mut fields: Vec<String> = Vec::new();
     let mut current_field = String::new();
@@ -35,7 +34,7 @@ fn parse_line(line: &str, delimiter: char,in_quotes: bool) -> (Vec<String>,bool)
 }
 
 fn parse_next_line(lines: &mut Lines<BufReader<File>>, delimiter: char) -> Result<Option<Vec<String>>> {
-    //helper function between parse_line which takes the lines iterator so that it can read multiple lines if needed
+    //helper function between parse_line which takes the lines iterator so that it can read multiple lines if needed to parse out multiline fields
     let line: String = match lines.next() {
         None => return Ok(None),
         Some(result) => result?,
@@ -55,9 +54,8 @@ fn parse_next_line(lines: &mut Lines<BufReader<File>>, delimiter: char) -> Resul
     Ok(Some(fields))
 }
 
-pub fn combine_files_by_keys(filenames: &[&str], output_filename: &str, key_columns: Option<&[&str]>,delimiter: char,empty_field_value: &str,remove_duplicates: bool) -> Result<()> {
+pub fn combine_files_by_keys(filenames: &[&str], output_filename: &str, key_columns: Option<&[&str]>,delimiter: char,empty_field_value: &str,remove_duplicates: bool , merge_duplicates: bool) -> Result<()> {
     // Determine key columns: either from parameter or from first header
-    //TODO: deal with finding and overwritting duplicate rows based on key columns.
 
     //process first file to get ideas.
     
@@ -91,12 +89,12 @@ pub fn combine_files_by_keys(filenames: &[&str], output_filename: &str, key_colu
         let last_index = index_maps_by_file_index.len() - 1;
         let index_map: &mut Vec<usize> = &mut index_maps_by_file_index[last_index];
         // let mut new_column_index_offset: usize = 0;
-        for header in current_header_vec.iter() {
-            match output_header_vec.iter().position(|x| x == header){
+        for header in current_header_vec.into_iter() {
+            match output_header_vec.iter().position(|x| *x == header){
                 Some(i) => { index_map.push(i); },
                 None => {//new column adds to output header
                     index_map.push(output_header_vec.len());
-                    output_header_vec.push(header.clone());
+                    output_header_vec.push(header);
                 }
             }
         }
@@ -106,6 +104,7 @@ pub fn combine_files_by_keys(filenames: &[&str], output_filename: &str, key_colu
     let mut output_writer = BufWriter::new(output_file);
     writeln!(output_writer, "{}", output_header_vec.join(&delimiter.to_string()))?;
     let mut seen_keys: HashSet<Vec<String>> = HashSet::new();
+    let mut merged_rows: HashMap<Vec<String>, Vec<String>> = HashMap::new();
     //read data rows and write to output
     for (file_index, &filename) in filenames.iter().enumerate(){
         let current_file = File::open(filename)?;
@@ -115,9 +114,9 @@ pub fn combine_files_by_keys(filenames: &[&str], output_filename: &str, key_colu
         let index_map: &Vec<usize> = &index_maps_by_file_index[file_index];
         while let Some(fields) = parse_next_line(&mut current_lines, delimiter)? {
             let mut output_fields: Vec<String> = vec![empty_field_value.to_string(); output_header_vec.len()];
-            for (field_index, field) in fields.iter().enumerate() {
+            for (field_index, field) in fields.into_iter().enumerate() {
                 let output_index = index_map[field_index];
-                output_fields[output_index] = field.clone();
+                output_fields[output_index] = field;
             }
             //check for duplicates if needed
             if remove_duplicates {
@@ -128,7 +127,29 @@ pub fn combine_files_by_keys(filenames: &[&str], output_filename: &str, key_colu
                     seen_keys.insert(key_fields);
                 }
             }
-            writeln!(output_writer, "{}", output_fields.join(&delimiter.to_string()))?;
+            if merge_duplicates {
+                let key_fields: Vec<String> = output_fields[..key_columns.len()].to_vec();
+                if let Some(existing_fields) = merged_rows.get_mut(&key_fields){ //found existing row to merge into
+                    for i in key_columns.len()..output_fields.len() {
+                        if existing_fields[i - key_columns.len()] == empty_field_value {
+                            existing_fields[i - key_columns.len()] = mem::take(&mut output_fields[i]);
+                        }
+                    }
+                } else { //new row to possibly merge into later
+                    merged_rows.insert(key_fields, output_fields[key_columns.len()..].to_vec());
+                }
+                continue; //skip writing now, will write later
+            }
+            writeln!(output_writer, "{}", output_fields.join(&delimiter.to_string()))?; //write row immediately.  
+        }
+    }
+    if merge_duplicates{ //write merged rows now
+        for (key_fields, value_fields) in merged_rows.into_iter(){
+            write!(output_writer, "{}", key_fields.join(&delimiter.to_string()))?;
+            if !value_fields.is_empty() {
+                write!(output_writer, "{}{}", delimiter, value_fields.join(&delimiter.to_string()))?;
+            }
+            writeln!(output_writer)?;
         }
     }
     Ok(())
@@ -149,6 +170,7 @@ mod tests {
             None,
             ',',
             "EMPTY",
+            false,
             false
         );
         
@@ -184,6 +206,7 @@ mod tests {
             None,
             ',',
             "EMPTY",
+            false,
             false
         );
         
@@ -226,6 +249,7 @@ mod tests {
             None,
             ',',
             "EMPTY",
+            false,
             false
         );
         
@@ -268,6 +292,7 @@ mod tests {
             None,
             ',',
             "EMPTY",
+            false,
             false
         );
         
@@ -301,6 +326,7 @@ mod tests {
             None,
             ',',
             "EMPTY",
+            false,
             false
         );
         
@@ -337,6 +363,7 @@ mod tests {
             None,
             ',',
             "EMPTY",
+            false,
             false
         );
         
@@ -374,7 +401,8 @@ mod tests {
             None,
             ',',
             "EMPTY",
-            true
+            true,
+            false
         );
         
         assert!(result.is_ok(), "Combine should succeed");
@@ -416,6 +444,7 @@ mod tests {
             None,
             ',',
             "EMPTY",
+            false,
             false
         );
         
@@ -436,6 +465,71 @@ mod tests {
         
         // Should have header + 15 data rows (5 from each file)
         assert_eq!(row_counter, 16, "Output should have 16 rows (1 header + 15 data rows)");
+        
+        // Cleanup
+        let _ = fs::remove_file(output);
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_duplicates() -> Result<()> {
+        // Test merging rows with same key from multiple files
+        let output = "csv_testing_output/test_output_merge.csv";
+        let result = combine_files_by_keys(
+            &[
+                "csv_samples/employees1_name.csv",
+                "csv_samples/employees1_department.csv",
+                "csv_samples/employees1_salary.csv"
+            ],
+            output,
+            Some(&["id"]),
+            ',',
+            "EMPTY",
+            false,
+            true
+        );
+        
+        assert!(result.is_ok(), "Combine should succeed");
+        
+        // Verify merged rows reconstruct the original data
+        let output_file = File::open(output)?;
+        let output_reader = BufReader::new(output_file);
+        let mut output_lines = output_reader.lines();
+        let mut row_counter: usize = 0;
+        
+        // Check header
+        let header = parse_next_line(&mut output_lines, ',')?.unwrap();
+        assert_eq!(header.len(), 4, "Header should have 4 columns");
+        assert!(header.contains(&"id".to_string()), "Header should contain 'id'");
+        assert!(header.contains(&"name".to_string()), "Header should contain 'name'");
+        assert!(header.contains(&"department".to_string()), "Header should contain 'department'");
+        assert!(header.contains(&"salary".to_string()), "Header should contain 'salary'");
+        
+        // Count and verify data rows
+        while let Some(fields) = parse_next_line(&mut output_lines, ',')? {
+            row_counter += 1;
+            assert_eq!(fields.len(), 4, "Each row should have 4 fields");
+            // Verify no EMPTY values (all should be filled from merge)
+            for (i, field) in fields.iter().enumerate() {
+                if i == 0 { // id field
+                    assert!(field.parse::<i32>().is_ok(), "ID should be an integer");
+                } else {
+                    assert_ne!(field, "EMPTY", "Merged fields should not be EMPTY");
+                }
+            }
+        }
+        
+        // Should have 5 merged rows (one for each employee)
+        assert_eq!(row_counter, 5, "Output should have 5 merged rows");
+        
+        // Print output file contents
+        // println!("*****Output file contents:");
+        // let output_file_debug = File::open(output)?;
+        // let output_reader_debug = BufReader::new(output_file_debug);
+        // for line in output_reader_debug.lines() {
+        //     println!("{}", line?);
+        // }
+        // println!("************************");
         
         // Cleanup
         let _ = fs::remove_file(output);

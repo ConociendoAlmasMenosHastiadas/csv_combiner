@@ -1,0 +1,79 @@
+# Windows Build Script for csv_combiner
+# Creates a distribution package with executable and license files
+
+$ErrorActionPreference = "Stop"
+
+Write-Host "Building csv_combiner for Windows (release mode)..." -ForegroundColor Cyan
+
+# Build the release executable
+cargo build --release
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Build failed!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Build successful!" -ForegroundColor Green
+
+# Create builds directory if it doesn't exist
+$buildsDir = "builds"
+if (-not (Test-Path $buildsDir)) {
+    New-Item -ItemType Directory -Path $buildsDir | Out-Null
+    Write-Host "Created builds directory" -ForegroundColor Yellow
+}
+
+# Get version from Cargo.toml
+$cargoToml = Get-Content "Cargo.toml" -Raw
+if ($cargoToml -match 'version\s*=\s*"([^"]+)"') {
+    $version = $matches[1]
+} else {
+    $version = "unknown"
+}
+
+# Create distribution directory name
+$distName = "csv_combiner_v${version}_windows"
+$distPath = Join-Path $buildsDir $distName
+
+# Remove old distribution directory if it exists
+if (Test-Path $distPath) {
+    Remove-Item -Path $distPath -Recurse -Force
+}
+
+# Create distribution directory
+New-Item -ItemType Directory -Path $distPath | Out-Null
+
+Write-Host "Copying files to distribution directory..." -ForegroundColor Cyan
+
+# Copy executable
+Copy-Item "target\release\csv_combiner.exe" -Destination $distPath
+
+# Copy license files
+Copy-Item "LICENSE-APACHE" -Destination (Join-Path $distPath "LICENSE-APACHE.txt")
+Copy-Item "LICENSE-MIT" -Destination (Join-Path $distPath "LICENSE-MIT.txt")
+Copy-Item "THIRD-PARTY-LICENSES.txt" -Destination $distPath
+
+# Copy README
+Copy-Item "README_CLI.md" -Destination $distPath
+
+# Create zip file
+$zipPath = Join-Path $buildsDir "$distName.zip"
+if (Test-Path $zipPath) {
+    Remove-Item $zipPath -Force
+}
+
+Write-Host "Creating zip archive..." -ForegroundColor Cyan
+Compress-Archive -Path $distPath -DestinationPath $zipPath
+
+# Clean up distribution directory
+Remove-Item -Path $distPath -Recurse -Force
+
+Write-Host ""
+Write-Host "Distribution created successfully!" -ForegroundColor Green
+Write-Host "Location: $zipPath" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Contents:" -ForegroundColor Cyan
+Write-Host "  - csv_combiner.exe"
+Write-Host "  - LICENSE-APACHE.txt"
+Write-Host "  - LICENSE-MIT.txt"
+Write-Host "  - THIRD-PARTY-LICENSES.txt"
+Write-Host "  - README_CLI.md"
