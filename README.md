@@ -1,6 +1,6 @@
 # csv_combiner
 
-A tool to combine CSV, TSV, and other delimited data files with flexible options for handling duplicates and missing data.
+A tool to combine CSV, TSV, and other delimited data files with flexible options for handling duplicates and missing data. .exe found in [releases](https://github.com/yourusername/csv_combiner/releases)
 
 ## Overview
 

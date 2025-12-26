@@ -63,7 +63,8 @@ if (Test-Path $zipPath) {
 }
 
 Write-Host "Creating zip archive..." -ForegroundColor Cyan
-Compress-Archive -Path $distPath -DestinationPath $zipPath
+# Use 7z
+7z a -tzip -mtc=off -mta=off $zipPath "$distPath\*"
 
 # Clean up distribution directory
 Remove-Item -Path $distPath -Recurse -Force
